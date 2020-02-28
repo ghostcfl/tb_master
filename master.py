@@ -1,7 +1,8 @@
 import asyncio
+import mysql
+import re
 from settings import MY_TB_ACCOUNT, test_server
 from pyquery import PyQuery as pq
-import mysql
 
 test_server['db'] = 'test'
 
@@ -9,6 +10,7 @@ test_server['db'] = 'test'
 class MasterSpider(object):
     start_url = 'https://szsaibao.taobao.com/search.htm?search=y&orderType=hotsell_desc&pageNo='
     view_prot = {"width": 1600, "height": 900}
+    total_page_num = 0
 
     def __init__(self, b, p):
         self.browser = b
@@ -26,12 +28,17 @@ class MasterSpider(object):
             await self.page.waitForSelector(".item4line1")
             page_num += 1
             yield await self.page.content()
+            if self.total_page_num and page_num > self.total_page_num:
+                break
             await asyncio.sleep(speed)
 
     async def parse(self):
         item = {}
-        async for html in self.get_html(1, speed=10):
+        async for html in self.get_html(1000, speed=10):
             doc = pq(html)
+            if not self.total_page_num:
+                num = doc(".pagination span.page-info").text()
+                self.total_page_num = re.findall("/(\d+)", num)[0]
             items = doc(".item4line1 dl.item").items()
             for i in items:
                 item['typeabbrev'] = "TB"
