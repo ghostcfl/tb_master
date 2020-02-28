@@ -38,7 +38,7 @@ class MasterSpider(object):
             doc = pq(html)
             if not self.total_page_num:
                 num = doc(".pagination span.page-info").text()
-                self.total_page_num = re.findall("/(\d+)", num)[0]
+                self.total_page_num = int(re.findall("/(\d+)", num)[0])
             items = doc(".item4line1 dl.item").items()
             for i in items:
                 item['typeabbrev'] = "TB"
