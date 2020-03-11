@@ -50,12 +50,8 @@ class Reports(object):
         flags = ["insert", "price", "promotion", "sale"]
         r = self.get(shop_ids=shop_ids, flags=flags)
         mail("店铺搜索页爬虫报告", r, my_user)
-        print(r)
+        [Format._write(shop_id=shop_id, flag="mail", value=1) for shop_id in shop_ids]
 
 
 if __name__ == '__main__':
-    # shop_ids = ["115443253", "33817767", "34933991", "131282813", "68559944", "60299985", "197444037"]
-    shop_id = "115443253"
-    print(shop_id.split(" "))
-    report = Reports()
-    report.report(shop_id.split(" "))
+    pass

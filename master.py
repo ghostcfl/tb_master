@@ -68,10 +68,15 @@ class MasterSpider(object):
                 spent_time = Format._read(shop_id=shop_info['shop_id'], flag="spent_time")  # 读取上一次存储在本地的时间
                 Format._write(shop_id=shop_info['shop_id'], flag="spent_time",
                               value=spent_time + spent_time_this_page)  # 将本页面完成时间加上后并存储在本地
-            Reports().report(shop_info['shop_id'].split(" "))
+            is_mail = Format._read(shop_info['shop_id'], "mail")
+            if is_mail:
+                Reports().report(shop_info['shop_id'].split(" "))
+
         for shop_id in shop_ids:
             Format._del(shop_id=shop_id, flag="page_num")  # 重置翻页的数据
             Format._del(shop_id=shop_id, flag="total_page")  # 重置总页码数据
+            Format._del(shop_id=shop_id, flag="mail")  # 重置邮件标记
+            Format._del(shop_id=shop_id, flag="spent_time")  # 重置完成时间
 
     async def _parse(self):
         """
