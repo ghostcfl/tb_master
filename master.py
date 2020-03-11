@@ -35,8 +35,9 @@ class MasterSpider(object):
         shop_infos = mysql.get_data(sql=sql, dict_result=True)
         shop_ids = []
         for shop_info in shop_infos:
-
-            page_control = 1000  # 如果没有获取到页码总数，给个1000的总数
+            page_control = Format._read(shop_id=shop_info['shop_id'], flag="total_page")  # 获得存储在本地的店铺总的页码数量
+            if not page_control:
+                page_control = 1000  # 如果没有获取到页码总数，给个1000的总数
 
             shop_ids.append(shop_info['shop_id'])  # 将店铺ID存储起来用于后面重置翻页数据
 
@@ -45,9 +46,6 @@ class MasterSpider(object):
             page_num = Format._read(shop_info['shop_id'], "page_num")  # 读取存储在本地的page_num
 
             while page_num < page_control:
-
-                page_control = Format._read(shop_id=shop_info['shop_id'], flag="total_page")  # 获得存储在本地的店铺总的页码数量
-
                 start_time = time.time()  # 本页面开始的时间存入变量
 
                 try:
@@ -63,6 +61,9 @@ class MasterSpider(object):
                 page_num = Format._read(shop_info['shop_id'], "page_num")  # 读取下一次要爬取的页码
 
                 yield content, match, shop_info['shop_id']  # 返回页面HTML内容和
+
+                page_control = Format._read(shop_id=shop_info['shop_id'], flag="total_page")  # 获得存储在本地的店铺总的页码数量
+
                 await asyncio.sleep(speed)  # 翻页间隔时间
                 spent_time_this_page = time.time() - start_time  # 计算本页完成时间
                 spent_time = Format._read(shop_id=shop_info['shop_id'], flag="spent_time")  # 读取上一次存储在本地的时间
