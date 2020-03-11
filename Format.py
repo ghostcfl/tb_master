@@ -141,21 +141,25 @@ def net_check(url=None):
     return
 
 
-def write(*args, **kwargs):
+def _write(shop_id=None, flag=None, value=0):
     if not os.path.exists("data"):
         os.mkdir("data")
-
     with shelve.open("data/data") as db:
-        for i in range(len(args)):
-            db['t' + str(i)] = args[i]
+        db["{}:{}".format(shop_id, flag)] = value
 
 
-def read():
+def _read(shop_id, flag):
     with shelve.open("data/data") as db:
-        for i in db:
-            yield i, db[i]
+        try:
+            return db["{}:{}".format(shop_id, flag)]
+        except KeyError:
+            return 0
+
+
+def _del(shop_id, flag):
+    with shelve.open("data/data") as db:
+        del db["{}:{}".format(shop_id, flag)]
 
 
 if __name__ == '__main__':
     print(yesterday("18:00:00"))
-
