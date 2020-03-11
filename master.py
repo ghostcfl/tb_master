@@ -53,14 +53,13 @@ class MasterSpider(object):
                 except Exception:
                     await asyncio.sleep(5)
                     continue
-                content = await self.page.content()
-                match = re.search("item\dline1", content).group()
-                await self.page.waitForSelector("." + match)
+
+                await self.page.waitForSelector(".shop-hesper-bd.grid")
 
                 Format._write(shop_id=shop_info['shop_id'], flag="page_num", value=page_num + 1)  # 将下次需要爬取的页码存入本地的配件中
                 page_num = Format._read(shop_info['shop_id'], "page_num")  # 读取下一次要爬取的页码
 
-                yield content, match, shop_info['shop_id']  # 返回页面HTML内容和
+                yield await self.page.content(), shop_info['shop_id']  # 返回页面HTML内容和
 
                 page_control = Format._read(shop_id=shop_info['shop_id'], flag="total_page")  # 获得存储在本地的店铺总的页码数量
 
@@ -80,12 +79,14 @@ class MasterSpider(object):
         :return: 返回数据模型 item
         """
         item = {}
-        async for html, match, ship_id in self._get_html(speed=10):
+        async for html, ship_id in self._get_html(speed=10):
             doc = pq(html)
             total_page = Format._read(shop_id=ship_id, flag="total_page")
             if not total_page:
                 num = doc(".pagination span.page-info").text()
                 Format._write(shop_id=ship_id, flag="total_page", value=int(re.findall("/(\d+)", num)[0]))
+
+            match = re.search("item\dline1", html).group()
             items = doc("." + match + " dl.item").items()
             for i in items:
                 item['shop_id'] = ship_id
