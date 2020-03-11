@@ -69,7 +69,7 @@ class MasterSpider(object):
                 Format._write(shop_id=shop_info['shop_id'], flag="spent_time",
                               value=spent_time + spent_time_this_page)  # 将本页面完成时间加上后并存储在本地
             is_mail = Format._read(shop_info['shop_id'], "mail")
-            if is_mail:
+            if not is_mail:
                 Reports().report(shop_info['shop_id'].split(" "))
 
         for shop_id in shop_ids:
