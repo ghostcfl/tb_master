@@ -50,11 +50,10 @@ class MasterSpider(object):
 
                 try:
                     await self.page.goto(url + str(page_num + 1))
+                    await self.page.waitForSelector(".shop-hesper-bd.grid")
                 except Exception:
                     await asyncio.sleep(5)
                     continue
-
-                await self.page.waitForSelector(".shop-hesper-bd.grid")
 
                 Format._write(shop_id=shop_info['shop_id'], flag="page_num", value=page_num + 1)  # 将下次需要爬取的页码存入本地的配件中
                 page_num = Format._read(shop_info['shop_id'], "page_num")  # 读取下一次要爬取的页码
