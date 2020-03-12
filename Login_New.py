@@ -56,7 +56,12 @@ class Login(object):
 
         net_check()
         # 检测页面是否有滑块。原理是检测页面元素。
-        slider = await p.Jeval('#nocaptcha', 'node => node.style')  # 是否有滑块
+        try:
+            await p.waitForSelector('#nc_1_n1z', visible=True, timeout=3000)
+        except errors.TimeoutError:
+            slider = 0
+        else:
+            slider = await p.J('#nc_1_n1z')  # 是否有滑块
         if slider:
             print("出现滑块情况判定")
             t = await self.slider(p=p)
