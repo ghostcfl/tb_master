@@ -3,7 +3,8 @@ import mysql
 import re
 import Format
 import time
-from settings import MY_TB_ACCOUNT, test_server
+from settings import MY_TB_ACCOUNT, test_server, dev
+from pyppeteer import launch, errors
 from datetime import date
 from pyquery import PyQuery as pq
 from Login_New import Login
@@ -20,10 +21,6 @@ class MasterSpider(object):
         self.browser = b
         self.page = p
         self.login = l
-
-    def __del__(self):
-        # self.loop.run_until_complete(self.browser.close())
-        # self.loop.close()
         pass
 
     async def _get_html(self, speed=1):
@@ -31,7 +28,6 @@ class MasterSpider(object):
         :param speed: 翻页间隔时间，秒
         :return: 返回爬取页面的HTML内容
         """
-
         sql = "select shop_id from shop_info where shop_id!='88888888'"  # 获取所有的店铺ID
         shop_infos = mysql.get_data(sql=sql, dict_result=True)
         shop_ids = []
@@ -53,6 +49,14 @@ class MasterSpider(object):
                     await self.page.goto(url + str(page_num + 1))
                     await asyncio.sleep(5)
                     frames = self.page.frames
+                    for f in frames:
+                        if await f.J("#TPL_username_1"):
+                            await f.type("#TPL_username_1", MY_TB_ACCOUNT['username'], {"delay": self.login.input_time_random()})
+                            await f.type("#TPL_password_1", MY_TB_ACCOUNT['password'], {"delay": self.login.input_time_random()})
+                            if await f.J("#nc_1_n1z"):
+                                await self.login.slider(self.page, 1)
+                            await f.click("#J_SubmitStatic")
+                            break
                     frame = await self.login.get_nc_frame(frames=frames)
                     if frame:
                         await self.login.slider(self.page, 1)
