@@ -16,9 +16,10 @@ class MasterSpider(object):
     start_url = 'https://shop.taobao.com/search.htm?search=y&orderType=hotsell_desc&pageNo='
     view_prot = {"width": 1600, "height": 900}
 
-    def __init__(self, b, p):
+    def __init__(self, b, p, l):
         self.browser = b
         self.page = p
+        self.login = l
 
     def __del__(self):
         # self.loop.run_until_complete(self.browser.close())
@@ -50,6 +51,10 @@ class MasterSpider(object):
 
                 try:
                     await self.page.goto(url + str(page_num + 1))
+                    frames = self.page.frame
+                    frame = await self.login.get_nc_frame(frames=frames)
+                    if frame:
+                        self.login.slider(self.page, 1)
                     await self.page.waitForSelector(".shop-hesper-bd.grid")
                 except Exception:
                     await asyncio.sleep(5)
@@ -147,5 +152,5 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     l = Login()
     b, p = loop.run_until_complete(l.login(**MY_TB_ACCOUNT))
-    master = MasterSpider(b, p)
+    master = MasterSpider(b, p, l)
     loop.run_until_complete(master.save())

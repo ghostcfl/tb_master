@@ -136,7 +136,8 @@ class Login(object):
                 else:
                     return f
 
-    async def get_nc_frame(self, frames):
+    @staticmethod
+    async def get_nc_frame(frames):
         for frame in frames:
             slider = await frame.J("#nc_1_n1z")
             if slider:
