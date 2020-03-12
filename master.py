@@ -52,12 +52,14 @@ class MasterSpider(object):
                 try:
                     await self.page.goto(url + str(page_num + 1))
                     await asyncio.sleep(5)
-                    frames = self.page.frame
+                    frames = self.page.frames
+                    print(frames)
                     frame = await self.login.get_nc_frame(frames=frames)
                     if frame:
-                        self.login.slider(self.page, 1)
+                        await self.login.slider(self.page, 1)
                     await self.page.waitForSelector(".shop-hesper-bd.grid")
-                except Exception:
+                except Exception as e:
+                    print(e)
                     await asyncio.sleep(5)
                     continue
 
