@@ -61,7 +61,7 @@ class Login(object):
         except errors.TimeoutError:
             slider = 0
         else:
-            slider = await p.J('#nc_1_n1z')  # 是否有滑块
+            slider = await p.J('#nc_1_n1z')
         if slider:
             print("出现滑块情况判定")
             t = await self.slider(p=p)
