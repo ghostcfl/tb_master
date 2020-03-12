@@ -129,7 +129,7 @@ class MasterSpider(object):
         async for i in self._parse():
             res = mysql.get_data(db=test_server, t="tb_master",
                                  c={'link_id': i['link_id']}, dict_result=True)
-            flag = []
+            flag = ["update"]
             narrative = []
             if res:
                 if res[0]['price'] != i['price']:
@@ -141,10 +141,9 @@ class MasterSpider(object):
                 if res[0]['sale_num'] != i['sale_num']:
                     flag.append("sale")
                     narrative.append("更新销量:[{}]=>[{}]".format(res[0]['sale_num'], i['sale_num']))
-                if len(flag) > 0:
-                    i['flag'] = "_".join(flag)
-                    i['narrative'] = ";".join(narrative)
-                    mysql.update_data(db=test_server, t='tb_master', set=i, c={"link_id": i['link_id']})
+                i['flag'] = "_".join(flag)
+                i['narrative'] = ";".join(narrative)
+                mysql.update_data(db=test_server, t='tb_master', set=i, c={"link_id": i['link_id']})
             else:
                 i['flag'] = 'insert'
                 mysql.insert_data(db=test_server, t="tb_master", d=i)
