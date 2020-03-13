@@ -197,6 +197,7 @@ class Login(object):
                         slider = await frame.J("#nc_1_n1z")
                         if not slider:
                             logger.info("滑动成功1")
+                            await asyncio.sleep(5)
                             frame = await self.get_nc_frame(frames)
                             if not frame:
                                 return 0
@@ -205,6 +206,7 @@ class Login(object):
                         slider = await frame.J("#nc_1_n1z")
                         if not slider:
                             logger.info("滑动成功2")
+                            await asyncio.sleep(5)
                             frame = await self.get_nc_frame(frames)
                             if not frame:
                                 return 0
