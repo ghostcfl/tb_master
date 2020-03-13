@@ -51,8 +51,12 @@ class MasterSpider(object):
                     frames = self.page.frames
                     for f in frames:
                         if await f.J("#TPL_username_1"):
-                            await f.type("#TPL_username_1", MY_TB_ACCOUNT['username'], {"delay": self.login.input_time_random()})
-                            await f.type("#TPL_password_1", MY_TB_ACCOUNT['password'], {"delay": self.login.input_time_random()})
+                            await f.click("#TPL_username_1", {"clickCount": 2})
+                            await self.page.keyboard.press("Delete")
+                            await f.type("#TPL_username_1", MY_TB_ACCOUNT['username'],
+                                         {"delay": self.login.input_time_random()})
+                            await f.type("#TPL_password_1", MY_TB_ACCOUNT['password'],
+                                         {"delay": self.login.input_time_random()})
                             if await f.J("#nc_1_n1z"):
                                 await self.login.slider(self.page, 1)
                             await f.click("#J_SubmitStatic")
