@@ -74,7 +74,7 @@ class Login(object):
             await p.click("#J_SubmitStatic")
 
         try:
-            await p.waitForSelector(".site-nav-login-info-nick", timeout=30000)
+            await p.waitForNavigation()
         except errors.TimeoutError:
             pass
         print("登录成功")

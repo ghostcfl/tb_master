@@ -14,7 +14,7 @@ test_server['db'] = 'test'
 
 
 class MasterSpider(object):
-    start_url = 'https://shop.taobao.com/search.htm?search=y&orderType=hotsell_desc&pageNo='
+    start_url = 'https://shop.taobao.com/'
     view_prot = {"width": 1600, "height": 900}
 
     def __init__(self, b, p, l):
@@ -22,6 +22,18 @@ class MasterSpider(object):
         self.page = p
         self.login = l
         pass
+
+    async def _jump_to_search_page(self):
+        await self.page.waitForSelector(".all-cats-trigger.popup-trigger")
+        await self.page.click(".all-cats-trigger.popup-trigger")
+
+    async def _goto_last_page_num(self, page_num):
+        print(page_num)
+        await self.page.waitForSelector('.pagination input[name="pageNo"]')
+        await self.page.click('.pagination input[name="pageNo"]', clickCount=2)
+        await self.page.type('.pagination input[name="pageNo"]', str(page_num),
+                             {'delay': self.login.input_time_random()})
+        await self.page.click(".pagination button")
 
     async def _get_html(self, speed=1):
         """
@@ -38,38 +50,37 @@ class MasterSpider(object):
 
             shop_ids.append(shop_info['shop_id'])  # 将店铺ID存储起来用于后面重置翻页数据
 
-            url = self.start_url.replace("shop", "shop" + shop_info["shop_id"])  # 初始货需要抓取的链接地址
-
+            url = self.start_url.replace("shop", "shop" + shop_info["shop_id"])  # 获得到店铺首页url地址
+            await self.page.goto(url)
+            await self._jump_to_search_page()
             page_num = Format._read(shop_info['shop_id'], "page_num")  # 读取存储在本地的page_num
 
             while page_num < page_control:
                 start_time = time.time()  # 本页面开始的时间存入变量
 
                 try:
-                    await self.page.goto(url + str(page_num + 1))
+                    # if page_num:
+                    await self._goto_last_page_num(page_num + 1)
                     await asyncio.sleep(5)
                     frames = self.page.frames
                     for f in frames:
                         if await f.J("#TPL_username_1"):
-                            await f.click("#TPL_username_1", {"clickCount": 2})
-                            await self.page.keyboard.press("Delete")
-                            await f.type("#TPL_username_1", MY_TB_ACCOUNT['username'],
-                                         {"delay": self.login.input_time_random()})
-                            await f.type("#TPL_password_1", MY_TB_ACCOUNT['password'],
-                                         {"delay": self.login.input_time_random()})
-                            if await f.J("#nc_1_n1z"):
-                                await self.login.slider(self.page, 1)
-                            await f.click("#J_SubmitStatic")
-                            break
+                            yield 0, 0
                     frame = await self.login.get_nc_frame(frames=frames)
                     if frame:
                         await self.login.slider(self.page, 1)
-                    await self.page.waitForSelector(".shop-hesper-bd.grid")
+
                 except Exception as e:
                     print(e)
                     await asyncio.sleep(5)
                     continue
-
+                try:
+                    await self.page.waitForSelector(".shop-hesper-bd.grid")
+                except errors.TimeoutError:
+                    break
+                except Exception as e:
+                    print(e)
+                    continue
                 Format._write(shop_id=shop_info['shop_id'], flag="page_num", value=page_num + 1)  # 将下次需要爬取的页码存入本地的配件中
                 page_num = Format._read(shop_info['shop_id'], "page_num")  # 读取下一次要爬取的页码
 
@@ -99,6 +110,8 @@ class MasterSpider(object):
         """
         item = {}
         async for html, ship_id in self._get_html(speed=10):
+            if not html:
+                yield 0
             doc = pq(html)
             total_page = Format._read(shop_id=ship_id, flag="total_page")
             if not total_page:
@@ -135,6 +148,9 @@ class MasterSpider(object):
         处理_parse()中获得的数据模型，并写入到数据库中
         """
         async for i in self._parse():
+            if not i:
+                print("需要要切换淘宝账户")
+                return 0
             res = mysql.get_data(db=test_server, t="tb_master",
                                  c={'link_id': i['link_id']}, dict_result=True)
             flag = ["update"]
