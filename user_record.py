@@ -64,6 +64,7 @@ async def run():
         item['spm'] = doc('div.pagination form input[name="spm"]').val()
 
         mysql.insert_data(db=test_server, t='user_record', d=item)
+        break
 
 
 if __name__ == '__main__':

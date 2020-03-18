@@ -158,8 +158,8 @@ def connection(**kwargs):
         try:
             con = pymysql.connect(**db_settings)
         except OperationalError as e:
-            logger.error("数据库链接异常，1分钟后尝试重连，原因：" + str(e))
-            sleep()
+            logger.error("数据库链接异常，5秒后尝试重连，原因：" + str(e))
+            sleep(5)
         else:
             break
     cursor = con.cursor()

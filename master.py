@@ -16,43 +16,30 @@ logger = get_logger()
 
 class Master(object):
     @staticmethod
-    def _get_headers(result):
-        headers = {
-            "Accept": "text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-            "Connection": "keep-alive",
-            "Cookie": result['cookies'],
-            "Host": "shop" + result['shop_id'] + ".taobao.com",
-            "Referer": result['refer'],
-            "TE": "Trailers",
-            "User-Agent": result['user_agent'],
-            "X-Requested-With": "XMLHttpRequest",
-        }
-        return headers
-
-    @staticmethod
-    def _get_url(result, page_num):
-        time_str = str(int(time.time() * 1000))
-        url = "https://szsaibao.taobao.com/i/asynSearch.htm?"
-        get_data = {
-            "_ksTS": time_str + "_" + result["_ksTS"],
-            "callback": result['callback'],
-            "mid": result['mid'],
-            "wid": result['wid'],
-            "path": "/search.htm",
-            "search": "y",
-            "spm": result['spm'],
-            "input_charset": "gbk",
-            "orderType": "hotsell_desc",
-            "pageNo": str(page_num)
-        }
-        data_str_list = []
-        for k, v in get_data.items():
-            data_str_list.append(k + "=" + v)
-        data_str = "&".join(data_str_list)
-        url += data_str
-        return url
+    def format_request_params(curl):
+        curl = re.sub("\"", "", curl)
+        a = curl.split(" -H ")
+        params = {}
+        cookies = {}
+        headers = {}
+        for b in a:
+            if re.match("curl", b):
+                c = b.split(" ")[-1]
+                url = c.split("?", 1)[0]
+                d = c.split("?", 1)[1].split("&")
+                for e in d:
+                    f = e.split("=", 1)
+                    params[f[0]] = f[1]
+            elif re.match("Cookie", b):
+                g = b.split(": ")[-1]
+                h = g.split("; ")
+                for i in h:
+                    j = i.split("=", 1)
+                    cookies[j[0]] = j[1]
+            else:
+                k = b.split(": ", 1)
+                headers[k[0]] = k[1]
+        return url, params, cookies, headers
 
     @staticmethod
     def _get_shop_id():
@@ -63,41 +50,8 @@ class Master(object):
                 yield shop_info['shop_id']
 
     def _get_html(self):
-        shop_ids = []
         for shop_id in self._get_shop_id():
-            page_control = Format._read(shop_id=shop_id, flag="total_page")  # 获得存储在本地的店铺总的页码数量
-            if not page_control:
-                page_control = 1000  # 如果没有获取到页码总数，给个1000的总数
-            shop_ids.append(shop_id)  # 将店铺ID存储起来用于后面重置翻页数据
-            page_num = Format._read(shop_id=shop_id, flag="page_num")  # 读取存储在本地的page_num
-            while page_num < page_control:
-                start_time = time.time()  # 本页面开始的时间存入变量
-                result = mysql.get_data(db=test_server, t='user_record', c={"shop_id": shop_id}, l=1, dict_result=True)
-                headers = self._get_headers(result[0])
-                url = self._get_url(result[0], page_num + 1)
-                r = requests.get(url=url, headers=headers)
-                html = r.text.replace("\\", "")
-                html = re.sub("jsonp\d+\(\"|\"\)", "", html)
-                yield html, shop_id
-
-                Format._write(shop_id=shop_id, flag="page_num", value=page_num + 1)  # 将下次需要爬取的页码存入本地的配件中
-                page_num = Format._read(shop_id, "page_num")  # 读取下一次要爬取的页码
-                page_control = Format._read(shop_id=shop_id, flag="total_page")  # 获得存储在本地的店铺总的页码数量
-                s = random.randrange(20, 50) * random.random()
-                logger.info("休息{}秒，开始爬取下一页".format(s))
-                time.sleep(s)
-                spent_time_this_page = time.time() - start_time  # 计算本页完成时间
-                spent_time = Format._read(shop_id=shop_id, flag="spent_time")  # 读取上一次存储在本地的时间
-                Format._write(shop_id=shop_id, flag="spent_time",
-                              value=spent_time + spent_time_this_page)  # 将本页面完成时间加上后并存储在本地
-            is_mail = Format._read(shop_id, "mail")
-            if not is_mail:
-                Reports().report(shop_id.split(" "))
-        for shop_id in shop_ids:
-            Format._del(shop_id=shop_id, flag="page_num")  # 重置翻页的数据
-            Format._del(shop_id=shop_id, flag="total_page")  # 重置总页码数据
-            Format._del(shop_id=shop_id, flag="mail")  # 重置邮件标记
-            Format._del(shop_id=shop_id, flag="spent_time")  # 重置完成时间
+            pass
 
     def _parse(self):
         for html, shop_id in self._get_html():
@@ -110,7 +64,14 @@ class Master(object):
 
             doc = PyQuery(html)
             #  存在未知错误的时候，写错误的HTML写到文件中
-            match = re.search("item\dline1", html).group()
+            try:
+                match = re.search("item\dline1", html).group()
+            except Exception as e:
+                logger.error(e)
+                with open("error.html", 'w') as f:
+                    f.write(html)
+                logger.error("未知错误导致程序退出查看error.html文件")
+                exit(0)
             if not match:
                 with open("error.html", 'w') as f:
                     f.write(html)
