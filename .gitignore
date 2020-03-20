@@ -21,3 +21,4 @@ headless-test-result.png
 /log
 *.log
 /data
+error.html
