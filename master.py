@@ -15,9 +15,17 @@ logger = get_logger()
 
 
 class Master(object):
+    proxy_url = "http://http.tiqu.alicdns.com/getip3?num=11&type=1&pro=&city=0&yys=0&port=11&time=1&ts=0&ys=0&cs=1&lb=1&sb=0&pb=45&mr=1&regions=110000,130000,140000,150000,210000,230000,310000,320000,330000,340000,350000,360000,370000,410000,420000,430000,440000,500000,510000,530000,610000,640000&gm=4"
+    proxies = None
 
     def __init__(self):
         pass
+
+    def _set_proxy(self):
+        r = requests.get(self.proxy_url)
+        proxy = re.sub("\s+", "", r.text)  # 获得代理IP
+        Format._write("1", "proxy", proxy)
+        return
 
     @staticmethod
     def _get_curls(shop_id):
@@ -64,53 +72,77 @@ class Master(object):
         sql = "select shop_id from shop_info where shop_id!='88888888'"  # 获取所有的店铺ID
         shop_infos = mysql.get_data(sql=sql, dict_result=True)
         for shop_info in shop_infos:
-            if shop_info['shop_id'] == "115443253":
-                yield shop_info['shop_id']
+            yield shop_info['shop_id']
 
     @staticmethod
     def _get_page_num(shop_id):
+        #  从数据库得到数据
         result = mysql.get_data(db=test_server, t="tb_search_page_info", c={"shop_id": shop_id}, dict_result=True)
         if not result:
+            #  没有数据就新增一个默认数据
             d = {
                 "shop_id": shop_id,
                 "total_page": 100,
                 "used_page_nums": "0"
             }
+            #  插入数据后再重新获取
             mysql.insert_data(db=test_server, t="tb_search_page_info", d=d)
             result = mysql.get_data(db=test_server, t="tb_search_page_info", c={"shop_id": shop_id}, dict_result=True)
 
+        #  获取已采集的数据的页码列表
         used_page_nums = [int(x) for x in result[0]['used_page_nums'].split(",")]
-        used_page_nums.sort()
         total_page = result[0]['total_page']
-        set_a = set([i for i in range(total_page + 1)])
-        set_b = set(used_page_nums)
-        list_result = list(set_a - set_b)
+        set_a = set([i for i in range(total_page + 1)])  # 全部页码的set集合
+        set_b = set(used_page_nums)  # 已采集的数据的页码集合
+        list_result = list(set_a - set_b)  # 未采集数据的页码列表
         if list_result:
+            # 返回一个随机的未采集数据的页码，已采集的页码集合，和总的页码数
             return random.choice(list_result), used_page_nums, total_page
         else:
+            # 如果没有未采集的页码，则表示当前店铺的所有页码全部采集完成
             return 0, 0, 0
 
     def _get_html(self):
         for shop_id in self._get_shop_id():
             curls = self._get_curls(shop_id)
+            if not curls:
+                continue
             curl = random.choice(curls)
             page_num, used_page_nums, total_page = self._get_page_num(shop_id)
-            if not page_num:
-                continue
-            url, params, cookies, headers = self.format_request_params(curl['curl'], page_num)
-            print(headers)
-            proxies = {"https": "http://58.218.92.142:9150"}
-            exit(0)
-            r = requests.get(url=url, params=params, cookies=cookies, headers=headers,proxies=proxies)
-            html = r.text.replace("\\", "")
-            html = re.sub("jsonp\d+\(\"|\"\)", "", html)
-            for k, v in params.items():
-                print(k, end=":")
-                print(v, end=":")
-            yield html, shop_id, curl, page_num, used_page_nums, total_page
+            session = requests.Session()
+            while page_num:
+                url, params, cookies, headers = self.format_request_params(curl['curl'], page_num)
+                while 1:
+                    try:
+                        proxy = Format._read("1", "proxy")
+                        print(proxy)
+                        if not proxy:
+                            self._set_proxy()
+                        proxies = {"https": "https://{}".format(proxy)}
+                        r = session.get(url=url, params=params, cookies=cookies, headers=headers, proxies=proxies)
+                    except requests.exceptions.ProxyError:
+                        self._set_proxy()
+                        session = requests.Session()
+                        continue
+                    # except Exception as e:
+                    #     logger.info(e)
+                    #     return 1
+                    else:
+                        break
+                html = r.text.replace("\\", "")
+                html = re.sub("jsonp\d+\(\"|\"\)", "", html)
+                yield html, shop_id, curl, total_page
+
+                used_page_nums.append(page_num)
+                used_page_nums.sort()
+                tspi = {  # tb_search_page_info
+                    "used_page_nums": ",".join([str(x) for x in used_page_nums]),
+                }
+                mysql.update_data(db=test_server, t="tb_search_page_info", set=tspi, c={"shop_id": shop_id})
+                page_num, used_page_nums, total_page = self._get_page_num(shop_id)
 
     def _parse(self):
-        for html, shop_id, curl, page_num, used_page_nums, total_page in self._get_html():
+        for html, shop_id, curl, total_page in self._get_html():
             doc = PyQuery(html)
             #  存在未知错误的时候，写错误的HTML写到文件中
             try:
@@ -121,20 +153,25 @@ class Master(object):
                     f.write(html)
                 logger.error("未知错误查看error.html文件1")
                 mysql.delete_data(db=test_server, t='tb_search_curl', c={"id": curl['id']})
-                continue
+                return 1
             if not match:
                 with open("error.html", 'w') as f:
                     f.write(html)
                 logger.error("未知错误查看error.html文件2")
+                return 1
 
-            used_page_nums.append(page_num)
             num = doc(".pagination span.page-info").text()
-            tspi = {  # tb_search_page_info
-                "shop_id": shop_id,
-                "total_page": re.search("\d+\/(\d+)", num).group(1),
-                "used_page_nums": ",".join([str(x) for x in used_page_nums]),
-            }
-            mysql.update_data(db=test_server, t="tb_search_page_info", set=tspi, c={"shop_id": shop_id})
+            try:
+                total_page_num = re.search("\d+\/(\d+)", num).group(1)
+            except Exception as e:
+                pass
+            else:
+                if int(total_page_num) != int(total_page):
+                    tspi = {  # tb_search_page_info
+                        "total_page": total_page_num,
+                    }
+                    mysql.update_data(db=test_server, t="tb_search_page_info", set=tspi, c={"shop_id": shop_id})
+
             items = doc("." + match + " dl.item").items()
             for i in items:
                 item = {}
@@ -185,12 +222,9 @@ class Master(object):
                 mysql.insert_data(db=test_server, t="tb_master", d=i)
 
 
-
 if __name__ == '__main__':
     m = Master()
     m.save()
-
-
 
 # import requests
 # import re
