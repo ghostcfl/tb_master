@@ -15,7 +15,7 @@ logger = get_logger()
 
 
 class Master(object):
-    proxy_url = "http://http.tiqu.alicdns.com/getip3?num=11&type=1&pro=&city=0&yys=0&port=11&time=1&ts=0&ys=0&cs=1&lb=1&sb=0&pb=45&mr=1&regions=110000,130000,140000,150000,210000,230000,310000,320000,330000,340000,350000,360000,370000,410000,420000,430000,440000,500000,510000,530000,610000,640000&gm=4"
+    proxy_url = "http://http.tiqu.alicdns.com/getip3?num=1&type=1&pro=&city=0&yys=0&port=11&pack=37356&ts=0&ys=0&cs=1&lb=1&sb=0&pb=45&mr=1&regions=110000,130000,140000,150000,210000,230000,310000,320000,330000,340000,350000,360000,370000,410000,420000,430000,440000,500000,510000,530000,610000,640000&gm=4"
     proxies = None
 
     def __init__(self):
@@ -82,7 +82,7 @@ class Master(object):
             #  没有数据就新增一个默认数据
             d = {
                 "shop_id": shop_id,
-                "total_page": 100,
+                "total_page": 20,
                 "used_page_nums": "0"
             }
             #  插入数据后再重新获取
@@ -104,6 +104,7 @@ class Master(object):
 
     def _get_html(self):
         for shop_id in self._get_shop_id():
+            start_time = time.time()
             curls = self._get_curls(shop_id)
             if not curls:
                 continue
@@ -132,11 +133,12 @@ class Master(object):
                 html = r.text.replace("\\", "")
                 html = re.sub("jsonp\d+\(\"|\"\)", "", html)
                 yield html, shop_id, curl, total_page
-
+                spent_time = int(time.time() - start_time)
                 used_page_nums.append(page_num)
                 used_page_nums.sort()
                 tspi = {  # tb_search_page_info
                     "used_page_nums": ",".join([str(x) for x in used_page_nums]),
+                    "spent_time": spent_time,
                 }
                 mysql.update_data(db=test_server, t="tb_search_page_info", set=tspi, c={"shop_id": shop_id})
                 page_num, used_page_nums, total_page = self._get_page_num(shop_id)
