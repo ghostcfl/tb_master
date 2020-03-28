@@ -137,7 +137,7 @@ class Master(object):
                         break
                 html = r.text.replace("\\", "")
                 html = re.sub("jsonp\d+\(\"|\"\)", "", html)
-                yield html, shop_id, curl, total_page
+                yield html, shop_id, curl, total_page, page_num
                 spent_time = int(time.time() - start_time)
                 used_page_nums.append(page_num)
                 used_page_nums.sort()
@@ -154,13 +154,14 @@ class Master(object):
             mysql.update_data(db=test_server, sql=sql)
 
     def _parse(self):
-        for html, shop_id, curl, total_page in self._get_html():
+        for html, shop_id, curl, total_page, page_num in self._get_html():
             doc = PyQuery(html)
             #  存在未知错误的时候，写错误的HTML写到文件中
             try:
                 match = re.search("item\dline1", html).group()
             except Exception as e:
                 logger.error(e)
+                logger.error("错误页码：" + page_num)
                 with open("error.html", 'w') as f:
                     f.write(html)
                 logger.error("未知错误查看error.html文件1")
@@ -169,6 +170,7 @@ class Master(object):
             if not match:
                 with open("error.html", 'w') as f:
                     f.write(html)
+                logger.error("错误页码：" + page_num)
                 logger.error("未知错误查看error.html文件2")
                 return 1
 
