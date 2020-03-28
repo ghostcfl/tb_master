@@ -149,6 +149,8 @@ def _write(shop_id=None, flag=None, value=0):
 
 
 def _read(shop_id, flag):
+    if not os.path.exists("data"):
+        os.mkdir("data")
     try:
         with shelve.open("data/data") as db:
             try:
