@@ -130,9 +130,9 @@ class Master(object):
                         self._set_proxy()
                         session = requests.Session()
                         continue
-                    # except Exception as e:
-                    #     logger.info(e)
-                    #     return 1
+                    except Exception as e:
+                        logger.info(e)
+                        continue
                     else:
                         break
                 html = r.text.replace("\\", "")
@@ -152,6 +152,8 @@ class Master(object):
                 datetime.date.today(), shop_id, datetime.date.today())
             print(sql)
             mysql.update_data(db=test_server, sql=sql)
+        reports = Reports()
+        reports.report([ids for ids in self._get_shop_id()])
 
     def _parse(self):
         for html, shop_id, curl, total_page, page_num in self._get_html():
