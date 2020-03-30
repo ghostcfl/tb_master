@@ -172,7 +172,7 @@ class Master(object):
             if not match:
                 with open("error.html", 'w') as f:
                     f.write(html)
-                logger.error("错误页码：" + page_num)
+                logger.error("错误页码：" + str(page_num))
                 logger.error("未知错误查看error.html文件2")
                 return 1
 
