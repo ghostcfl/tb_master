@@ -124,7 +124,8 @@ class Master(object):
                         if not proxy:
                             self._set_proxy()
                         proxies = {"https": "https://{}".format(proxy)}
-                        r = session.get(url=url, params=params, cookies=cookies, headers=headers, proxies=proxies)
+                        r = session.get(url=url, params=params, cookies=cookies, headers=headers, proxies=proxies,
+                                        stream=True)
                     except requests.exceptions.ProxyError:
                         self._set_proxy()
                         session = requests.Session()
