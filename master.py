@@ -26,7 +26,6 @@ class Master(object):
         r = requests.get(self.proxy_url)
         proxy = re.sub("\s+", "", r.text)  # 获得代理IP
         Format._write("1", "proxy", proxy)
-        return
 
     @staticmethod
     def _get_curls(shop_id):
@@ -130,9 +129,9 @@ class Master(object):
                         self._set_proxy()
                         session = requests.Session()
                         continue
-                    except Exception as e:
-                        logger.info(e)
-                        continue
+                    # except Exception as e:
+                    #     logger.info(e)
+                    #     continue
                     else:
                         break
                 html = r.text.replace("\\", "")
