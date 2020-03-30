@@ -163,7 +163,7 @@ class Master(object):
                 match = re.search("item\dline1", html).group()
             except Exception as e:
                 logger.error(e)
-                logger.error("错误页码：" + page_num)
+                logger.error("错误页码：" + str(page_num))
                 with open("error.html", 'w') as f:
                     f.write(html)
                 logger.error("未知错误查看error.html文件1")
