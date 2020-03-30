@@ -129,9 +129,12 @@ class Master(object):
                         self._set_proxy()
                         session = requests.Session()
                         continue
-                    # except Exception as e:
-                    #     logger.info(e)
+                    # except requests.exceptions.InvalidURL:
+                    #     self._set_proxy()
                     #     continue
+                    except Exception as e:
+                        logger.info(e.args)
+                        continue
                     else:
                         break
                 html = r.text.replace("\\", "")
