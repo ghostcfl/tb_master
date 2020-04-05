@@ -111,7 +111,6 @@ class Master(object):
             start_time = time.time()
             curls = self._get_curls(shop_id)
             if not curls:
-                logger.info(shop_id + " curl已过期")
                 continue
             curl = random.choice(curls)
             page_num, used_page_nums, total_page = self._get_page_num(shop_id)
