@@ -2,6 +2,8 @@ import mysql
 import re
 import requests
 import Format
+import json
+from pyquery import PyQuery
 from requests import Session
 from settings import test_server, MY_TB_ACCOUNT
 from request_headers import get_request_headers
@@ -12,8 +14,8 @@ test_server['db'] = "test"
 
 class Slaver(object):
     url = "https://item.taobao.com/item.htm?id="
-    # proxy_url = "http://http.tiqu.alicdns.com/getip3?num=1&type=1&pro=&city=0&yys=0&port=11&pack=37356&ts=0&ys=0&cs=1&lb=1&sb=0&pb=45&mr=1&regions=110000,130000,140000,150000,210000,230000,310000,320000,330000,340000,350000,360000,370000,410000,420000,430000,440000,500000,510000,530000,610000,640000&gm=4"
-    proxy_url = "http://http.tiqu.alicdns.com/getip3?num=1&type=1&pro=&city=0&yys=0&port=11&pack=90994&ts=0&ys=0&cs=0&lb=1&sb=0&pb=4&mr=1&regions=&gm=4"
+    proxy_url = "http://http.tiqu.alicdns.com/getip3?num=1&type=1&pro=&city=0&yys=0&port=11&pack=37356&ts=0&ys=0&cs=1&lb=1&sb=0&pb=45&mr=1&regions=110000,130000,140000,150000,210000,230000,310000,320000,330000,340000,350000,360000,370000,410000,420000,430000,440000,500000,510000,530000,610000,640000&gm=4"
+    # proxy_url = "http://http.tiqu.alicdns.com/getip3?num=1&type=1&pro=&city=0&yys=0&port=11&pack=90994&ts=0&ys=0&cs=0&lb=1&sb=0&pb=4&mr=1&regions=&gm=4"
     proxies = None
 
     def __init__(self):
@@ -71,20 +73,25 @@ class Slaver(object):
 
     def parse(self):
         for html, item in self._get_html():
-            pass
-            # a = re.findall('";(.*?);".*?e":"(\d+\.\d+).*?skuId":"(\d+)', html)
-            # if a:
-            #     discount = 0
-            #     if float(item['promotionPrice']) > 0:
-            #         discount = round(float(item['price']) - float(item['promotionPrice']), 4)
-            #     print(discount)
-            #     for i in range(len(a)):
-            #         item['price'] = float(a[i][1])
-            #         item['skuId'] = a[i][2]
-            #         if discount:
-            #             item['promotionPrice'] = round(item['price'] - discount, 4)
-            #         print(item)
-            # input()
+            sku_map = re.search('skuMap.*?(\{.*)', html)
+            shop_id = re.search('rstShopId.*?(\d+)', html).group(1)
+            doc = PyQuery(html)
+            items = doc("li[data-value]").items()
+            print(items)
+            attr_map = {}
+            if items:
+                for item in items:
+                    attr_map[item.attr('data-value')] = item.find('span').text()
+            if sku_map:
+                sku_dict = json.loads(sku_map.group(1))
+                for k, v in sku_dict.items():
+                    for price_tb_item in self.price_tb_items:
+                        if price_tb_item.skuId == v.get('skuId'):
+                            price_tb_item.price_tb = v.get('price')
+                            price_tb_item.shop_id = shop_id
+                            price_tb_item.attribute_map = k
+                            price_tb_item.attribute = "-".join(
+                                [attr_map.get(r) for r in re.sub('^;|;$', "", k).split(";")])
 
     @classmethod
     def run(cls):

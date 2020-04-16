@@ -133,6 +133,9 @@ class Master(object):
                     except requests.exceptions.InvalidURL:
                         self._set_proxy()
                         continue
+                    except requests.exceptions.SSLError:
+                        self._set_proxy()
+                        continue
                     else:
                         break
                 html = r.text.replace("\\", "")
