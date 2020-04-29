@@ -200,20 +200,22 @@ class Master(object):
                 item['update_date'] = date.today()
                 item['flag'] = "insert"
                 cprice = float(i.find("div.cprice-area span.c-price").text())
+                if i.find("dd.rates a span").text():
+                    item['rates'] = int(i.find("dd.rates a span").text())
                 if i.find("div.sprice-area span.s-price").text():
                     sprice = float(i.find("div.sprice-area span.s-price").text())
                 else:
                     sprice = 0
                 if i.find("div.sale-area span.sale-num").text():
-                    item['sale_num'] = int(i.find("div.sale-area span.sale-num").text())
+                    item['sales'] = int(i.find("div.sale-area span.sale-num").text())
                 else:
-                    item['sale_num'] = 0
+                    item['sales'] = 0
                 if sprice:
-                    item['price'] = sprice
-                    item['promotionPrice'] = cprice
+                    item['price_tb'] = sprice
+                    item['promotionprice'] = cprice
                 else:
-                    item['price'] = cprice
-                    item['promotionPrice'] = sprice
+                    item['price_tb'] = cprice
+                    item['promotionprice'] = sprice
                 yield item
 
     def save(self):
@@ -224,23 +226,25 @@ class Master(object):
             flag = ["update"]
             narrative = []
             if res:
-                if res[0]['price'] != i['price']:
-                    flag.append("price")
-                    narrative.append("更新销售价格:[{}]=>[{}]".format(res[0]['price'], i['price']))
-                if res[0]['promotionPrice'] != i['promotionPrice']:
+                if res[0]['price_tb'] != i['price_tb']:
+                    flag.append("price_tb")
+                    narrative.append("更新销售价格:[{}]=>[{}]".format(res[0]['price_tb'], i['price_tb']))
+                if res[0]['promotionprice'] != i['promotionprice']:
                     flag.append("promotion")
-                    narrative.append("更新优惠售价格:[{}]=>[{}]".format(res[0]['promotionPrice'], i['promotionPrice']))
-                if res[0]['sale_num'] != i['sale_num']:
+                    narrative.append("更新优惠售价格:[{}]=>[{}]".format(res[0]['promotionprice'], i['promotionprice']))
+                if res[0]['sales'] != i['sales']:
                     flag.append("sale")
-                    narrative.append("更新销量:[{}]=>[{}]".format(res[0]['sale_num'], i['sale_num']))
+                    narrative.append("更新销量:[{}]=>[{}]".format(res[0]['sales'], i['sales']))
                 if res[0]['flag'] == 'XiaJia':
                     flag.append("ShangJia")
                     narrative.append("下架商品重新上架")
                 i['flag'] = "_".join(flag)
                 i['narrative'] = ";".join(narrative)
+                # print(i)
                 mysql.update_data(db=test_server, t='tb_master', set=i, c={"link_id": i['link_id']})
             else:
                 i['flag'] = 'insert'
+                # print(i)
                 mysql.insert_data(db=test_server, t="tb_master", d=i)
 
 
