@@ -5,13 +5,13 @@ import re
 import Format
 import random
 import datetime
-from settings import test_server
+from settings import TEST_SERVER_DB_TEST
 from pyquery import PyQuery
 from datetime import date
 from logger import get_logger
 from reports import Reports
+from my_sql import MySql
 
-test_server['db'] = 'test'
 logger = get_logger()
 
 
@@ -30,7 +30,8 @@ class Master(object):
     @staticmethod
     def _get_curls(shop_id):
         curls = []
-        results = mysql.get_data(db=test_server, t="tb_search_curl", c={'shop_id': shop_id}, dict_result=True)
+        # results = mysql.get_data(db=test_server, t="tb_search_curl", c={'shop_id': shop_id}, dict_result=True)
+        results = MySql.cls_get_dict(db_setting=TEST_SERVER_DB_TEST, t="tb_search_curl", c={'shop_id': shop_id})
         for res in results:
             curls.append(res)
         return curls
@@ -70,14 +71,17 @@ class Master(object):
     @staticmethod
     def _get_shop_id():
         sql = "select shop_id from shop_info where shop_id!='88888888'"  # 获取所有的店铺ID
-        shop_infos = mysql.get_data(sql=sql, dict_result=True)
+        # shop_infos = mysql.get_data(sql=sql, dict_result=True)
+        shop_infos = MySql.cls_get_dict(sql=sql)
         for shop_info in shop_infos:
             yield shop_info['shop_id']
 
     @staticmethod
     def _get_page_num(shop_id):
         #  从数据库得到数据
-        result = mysql.get_data(db=test_server, t="tb_search_page_info", c={"shop_id": shop_id}, dict_result=True)
+        ms = MySql(db_setting=TEST_SERVER_DB_TEST)
+        # result = mysql.get_data(db=test_server, t="tb_search_page_info", c={"shop_id": shop_id}, dict_result=True)
+        result = ms.get_dict(t="tb_search_page_info", c={"shop_id": shop_id})
         if not result:
             #  没有数据就新增一个默认数据
             d = {
@@ -86,14 +90,14 @@ class Master(object):
                 "used_page_nums": "0"
             }
             #  插入数据后再重新获取
-            mysql.insert_data(db=test_server, t="tb_search_page_info", d=d)
-            result = mysql.get_data(db=test_server, t="tb_search_page_info", c={"shop_id": shop_id}, dict_result=True)
+            ms.insert(t="tb_search_page_info", d=d)
+            result = ms.get_dict(t="tb_search_page_info", c={"shop_id": shop_id})
 
         if result[0]['last_date'] < datetime.date.today():
-            mysql.update_data(db=test_server, t="tb_search_page_info", set={"used_page_nums": "0"},
-                              c={"shop_id": shop_id})
-            result = mysql.get_data(db=test_server, t="tb_search_page_info", c={"shop_id": shop_id}, dict_result=True)
+            ms.update(t="tb_search_page_info", set={"used_page_nums": "0"}, c={"shop_id": shop_id})
+            result = ms.get_dict(t="tb_search_page_info", c={"shop_id": shop_id})
         #  获取已采集的数据的页码列表
+        del ms
         used_page_nums = [int(x) for x in result[0]['used_page_nums'].split(",")]
         total_page = result[0]['total_page']
         set_a = set([i for i in range(total_page + 1)])  # 全部页码的set集合
@@ -149,17 +153,19 @@ class Master(object):
                     "spent_time": spent_time,
                     "last_date": datetime.date.today()
                 }
-                mysql.update_data(db=test_server, t="tb_search_page_info", set=tspi, c={"shop_id": shop_id})
+                MySql.cls_update(db_setting=TEST_SERVER_DB_TEST, t="tb_search_page_info", set=tspi,
+                                 c={"shop_id": shop_id})
                 page_num, used_page_nums, total_page = self._get_page_num(shop_id)
             sql = "UPDATE tb_master SET flag='XiaJia',update_date='{}' WHERE shop_id='{}' AND update_date<'{}'".format(
                 datetime.date.today(), shop_id, datetime.date.today())
-            print(sql)
-            mysql.update_data(db=test_server, sql=sql)
+            # print(sql)
+            MySql.cls_update(db_setting=TEST_SERVER_DB_TEST, sql=sql)
         reports = Reports()
         reports.report([ids for ids in self._get_shop_id()])
 
     def _parse(self):
         for html, shop_id, curl, total_page, page_num in self._get_html():
+            ms = MySql(db_setting=TEST_SERVER_DB_TEST)
             doc = PyQuery(html)
             #  存在未知错误的时候，写错误的HTML写到文件中
             try:
@@ -170,7 +176,7 @@ class Master(object):
                 with open("error.html", 'w') as f:
                     f.write(html)
                 logger.error("未知错误查看error.html文件1")
-                mysql.delete_data(db=test_server, t='tb_search_curl', c={"id": curl['id']})
+                ms.delete(t='tb_search_curl', c={"id": curl['id']})
                 return 1
             if not match:
                 with open("error.html", 'w') as f:
@@ -189,7 +195,7 @@ class Master(object):
                     tspi = {  # tb_search_page_info
                         "total_page": total_page_num,
                     }
-                    mysql.update_data(db=test_server, t="tb_search_page_info", set=tspi, c={"shop_id": shop_id})
+                    ms.update(t="tb_search_page_info", set=tspi, c={"shop_id": shop_id})
 
             items = doc("." + match + " dl.item").items()
             for i in items:
@@ -216,13 +222,13 @@ class Master(object):
                 else:
                     item['price_tb'] = cprice
                     item['promotionprice'] = sprice
-                yield item
+                yield item, ms
+            del ms
 
     def save(self):
-        for i in self._parse():
+        for i, ms in self._parse():
             logger.info(i)
-            res = mysql.get_data(db=test_server, t="tb_master",
-                                 c={'link_id': i['link_id']}, dict_result=True)
+            res = ms.get_dict(t="tb_master", c={'link_id': i['link_id']})
             flag = ["update"]
             narrative = []
             if res:
@@ -241,11 +247,11 @@ class Master(object):
                 i['flag'] = "_".join(flag)
                 i['narrative'] = ";".join(narrative)
                 # print(i)
-                mysql.update_data(db=test_server, t='tb_master', set=i, c={"link_id": i['link_id']})
+                ms.update(t='tb_master', set=i, c={"link_id": i['link_id']})
             else:
                 i['flag'] = 'insert'
                 # print(i)
-                mysql.insert_data(db=test_server, t="tb_master", d=i)
+                ms.insert(t="tb_master", d=i)
 
 
 if __name__ == '__main__':
